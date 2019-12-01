@@ -5,19 +5,27 @@ a = IP()/TCP()
 b = TCP()/IP()
 ```
 
-上面的例子中，a和b的区别是：a构造出来的数据包，在IP层的proto字段为tcp；b的IP层proto字段为ip
+上面的例子中，a和b的区别是：a构造出来的数据包，在IP层的proto字段为tcp；b的IP层proto字段还是为ip。
 
 >  总结：后面的会覆盖前面的属性。所以最好是最底层的写在前面
 
+**查看某一层数据包需要的属性**
+
+```python
+ls(IP)
+```
+
 **一个标准的写法**
 
-`Ether()/IP()/TCP()/"GET / HTTP1.1"`
+```python
+Ether()/IP()/TCP()/"GET / HTTP1.1"
+```
 
-输出是：
+**输出是：**
 
 ```bash
 ###[ Ethernet ]###
-  dst= ff:ff:ff:ff:ff:ff
+  dst= ff:ff:ff:ff:ff:ff #这里没有指定mac地址，所以用广播地址，即局域网内所有主机都可以收到这个包
   src= 00:00:00:00:00:00
   type= IPv4
 ###[ IP ]###
@@ -95,7 +103,7 @@ main()
 send方法有好几种
 
 - 发送三层包：send(pkt, inter=0, loop=0, count=1, iface=N) 。意思就是说，IP层（前两层分别是物理层，数据链路层）之前的我不需要关心，只需要关注IP层及之上的层，比如HTTP，FTP层，这也是比较通用的方法。
-- 发送二层包：sendp(pkt, inter=0, loop=0, count=1, iface=N)，根据上面的分析得出，我只需要关心数据链路层及之上的层。
+- 发送二层包：sendp(pkt, inter=0, loop=0, count=1, iface=N)，根据上面的分析得出，我只需要关心数据链路层及之上的层。如果需要指定网卡信息的话，就应该用这个
 
 ```bash
 >>> send(IP(dst="192.168.8.104")/TCP(dport=9999))
@@ -131,7 +139,7 @@ my_payload="space for rent!"
 TCP_PUSH=TCP( dport=9999, flags="PA", seq=102, ack=my_ack)
 send(ip/TCP_PUSH/my_payload)
 
-
+这样做是不会成功的，服务器会返回RA，也就是重连的标记。我也是参考的下面的例子。为了不让这个例子所在的网站失效，所以我就copy了一份到这里。
 
 ### 以下是用scapy实现的三次握手
 
@@ -215,3 +223,47 @@ dpkg = sniff(filter="host 192.168.191.5 and tcp",iface="Microsoft Wi-Fi Direct V
 3、prn指定回调函数，每当一个符合filter的报文被探测到时，就会执行回调函数，通常使用lambda表达式来写回调函数
 
 4、count指定最多嗅探多少个报文（是指符合filter条件的报文，而非所有报文）
+
+
+
+
+
+
+
+
+
+# 遇到的问题
+
+> 向服务器发送伪造的UDP包，服务器不响应
+
+创建UDP服务器代码
+
+```python
+import socket
+
+s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+
+# 绑定端口:
+s.bind(('192.168.8.104', 9999))
+
+print('Bind UDP on 9999...')
+
+while True:
+    # 接收数据:
+    data, addr = s.recvfrom(1024)
+    print('Received from %s:%s.' % addr)
+    print(data.decode("utf-8"))
+```
+
+发送UDP数据包但是不生效
+
+```python
+send(IP(dst = "192.168.8.104") / UDP(dport = 9999)/"Hello")
+```
+
+换一种方式却生效了
+
+```python
+sr1(IP(dst = "192.168.8.104") / UDP(dport = 9999)/"Hello")
+```
+
