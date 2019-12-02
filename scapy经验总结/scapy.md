@@ -275,3 +275,4 @@ sr1(IP(dst = "192.168.8.104") / UDP(dport = 9999)/"Hello")
 
 **两台主机都必须是公有IP，否则会有问题**
 
+> 问题解决了，是scapy这个仓库的bug。官方人员已修复https://github.com/secdev/scapy/issues/2355
