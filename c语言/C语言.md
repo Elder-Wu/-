@@ -67,12 +67,11 @@ pthread_join(tid,NULL);
 // Created by wu on 2019-12-09.
 //
 #include <stdio.h>
-#include <stdint.h>
-#include <netinet/ip.h>
-#include <netinet/tcp.h>
+#include <netinet/ip.h>//Provides declarations for ip header
+#include <netinet/tcp.h>//Provides declarations for tcp header
 #include <arpa/inet.h>
-#include <stdlib.h>
-#include <string.h>
+#include <stdlib.h> //for exit(0);
+#include <string.h> //memset,memcpy
 
 //needed for checksum calculation
 struct pseudo_header_tcp {
@@ -85,8 +84,9 @@ struct pseudo_header_tcp {
     struct tcphdr tcp;
 };
 
-static unsigned short calculate_checkcsum(uint16_t *ptr, int pktlen) {
-    uint32_t csum = 0;
+//checksum is 16bit,should use unsigned short
+static unsigned short calculate_checkcsum(unsigned short *ptr, int pktlen) {
+    register uint32_t csum = 0;
 
     //add 2 bytes / 16 bits at a time!!
     while (pktlen > 1) {
@@ -121,29 +121,29 @@ int main(int argc, char *argv[]) {
     int i;
     for (i = 1; i < argc; i++) {
         if (i == 1) {
-            printf("src ip = %s\n", argv[i]);
+            printf("src_ip = %s\n", argv[i]);
             src_inet_addr = inet_addr(argv[i]);
             continue;
         }
         if (i == 2) {
             src_port = (unsigned short) atoi(argv[i]);
-            printf("src port = %d\n", src_port);
+            printf("src_port = %d\n", src_port);
             continue;
         }
         if (i == 3) {
-            printf("dst ip = %s\n", argv[i]);
+            printf("dst_ip = %s\n", argv[i]);
             dst_inet_addr = inet_addr(argv[i]);
             continue;
         }
         if (i == 4) {
             dst_port = (unsigned short) atoi(argv[i]);
-            printf("dst port = %d\n", dst_port);
+            printf("dst_port = %d\n", dst_port);
             continue;
         }
     }
 
-    // 申请一块空间用来存放数据包，该数据包最终是要通过socket发送出去的
-    char datagram[sizeof(struct iphdr) + sizeof(struct tcphdr)] = {0};
+    // tcp-datagram packet.size is size of iphdr + size of tcphdr
+    char datagram[sizeof(struct iphdr) + sizeof(struct tcphdr)];
     bzero(datagram, sizeof(datagram));
 
     // 将 ip 首部指针和 tcp 首部指针指向各自的位置，
@@ -163,15 +163,15 @@ int main(int argc, char *argv[]) {
     ip_header->saddr = src_inet_addr;
     ip_header->daddr = dst_inet_addr;
 
-    //计算 ip 校验和
-    ip_header->check = calculate_checkcsum((uint16_t *) datagram, sizeof(struct iphdr));
+    //计算 ip 校验和，两个字节
+    ip_header->check = calculate_checkcsum((unsigned short*) datagram, sizeof(struct iphdr));
 
     // 填充 tcp 首部字段
-    tcp_header->source = htons(src_port);
-    tcp_header->dest = htons(dst_port);
+    tcp_header->source = htons(src_port);   //htons means host to network short
+    tcp_header->dest = htons(dst_port);     //if spec value < 255(8bit) , there is no need to use htons
     tcp_header->seq = 0;                    //自定义 seq 序号，方便筛选
     tcp_header->ack_seq = 0;
-    tcp_header->doff = 5; //tcp header size 5行
+    tcp_header->doff = 5; //tcp header size ,5行,每行4个字节（32bit）
     tcp_header->fin = 0;
     tcp_header->syn = 1;                                //构造三次握手中的第一次，SYN 置 1
     tcp_header->rst = 0;
@@ -192,7 +192,7 @@ int main(int argc, char *argv[]) {
     memcpy(&psh.tcp, tcp_header, sizeof(struct tcphdr));
 
     //计算 tcp 校验和
-    tcp_header->check = calculate_checkcsum((uint16_t *) &psh, sizeof(struct pseudo_header_tcp));
+    tcp_header->check = calculate_checkcsum((unsigned short *) &psh, sizeof(struct pseudo_header_tcp));
 
     //↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑至此，第一次握手的 TCP/IP 数据包构造完毕↑↑↑↑↑↑↑↑↑↑↑↑
 
@@ -223,15 +223,17 @@ int main(int argc, char *argv[]) {
     if (bytes_sent < 0) {
         fprintf(stderr, "ERROR: Send datagram fail\n");
     } else {
-        printf("send packet success !!! byte count -> %zd", bytes_sent);
+        printf("%zu bytes send success !\n", bytes_sent);
     }
 
-    // 这里应该关闭socket
+    // sockfd should close here !
     return 0;
 }
 ```
 
->  **在Linux系统编译并运行上面的代码后，会发现客户端会发送一个RST包给服务端，为什么？**
+编译成可执行文件：`gcc -o executable-name source-file.c`
 
-​	因为你发了SYN包，对方发回来SYN/ACK包，你的操作系统内核先于你的程序接收到这个包，它检查内核里的socket，发现没有一个socket对应于这个包（因为raw tcp socket没有保存ip和端口等信息，所以内核不能识别这个包），所以发了一个RST包给对方，于是对方的tcp socket关闭了。
+>  **在Linux系统编译并运行上面的代码后，发现客户端会发送一个RST包给服务端，为什么？**
+
+​	因为client发了SYN包，server发回来SYN/ACK包，你的操作系统内核先于你的程序接收到这个包，它检查内核里的socket，发现没有一个socket对应于这个包（因为raw tcp socket没有保存ip和端口等信息，所以内核不能识别这个包），所以发了一个RST包给对方，于是对方的tcp socket关闭了。
 
