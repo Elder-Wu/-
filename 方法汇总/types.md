@@ -33,7 +33,7 @@ SYN攻击背后的主要思想是发送大量SYN数据包以消耗TCP \ IP堆栈
 
 垃圾洪水管道饱和
 
-最佳组合：**随机源syn+syn反射+udp+udp反射(DNS(递归查询，让dns服务商奔溃，然后就会直接导致网站解析失败，待会误伤很多其他网站)+cldap+SSDP)**+HTTP
+最佳组合：**随机源syn+syn反射+ack+udp+udp反射(DNS(递归查询，让dns服务商奔溃，然后就会直接导致网站解析失败，待会误伤很多其他网站)+cldap+SSDP)**+HTTP
 
 
 
