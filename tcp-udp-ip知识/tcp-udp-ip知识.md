@@ -1,3 +1,11 @@
+## TCP/IP通讯结构
+
+![](./r2lvt2ilht.png)
+
+
+
+
+
 ## 子网掩码及CIDR(无类-域间-路由 classless inner-domen route)
 
 ​	通俗地讲,CIDR就是用于局域网的协议，用来标记网络号和主机号。
