@@ -119,8 +119,8 @@ void send_syn_packet() {
     srand((unsigned int) time(0));
     unsigned int rand_unsigned_int32 = 0;
 
-    unsigned int rand_src_ip = src_inet_addr;
-    unsigned short rand_src_port = src_port;
+    unsigned int rand_src_ip = (unsigned int) src_inet_addr;
+    unsigned short rand_src_port = (unsigned short) src_port;
 
     for (;;) {
         // for fastest speed
