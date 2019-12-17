@@ -1,3 +1,4 @@
 add_executable(send_udp_once.c send_udp_once.c)
+add_executable(send_udp_flood.c send_udp_flood.c)
 add_executable(send_tcp_syn_once.c send_tcp_syn_once.c)
 add_executable(send_tcp_syn_flood.c send_tcp_syn_flood.c)
