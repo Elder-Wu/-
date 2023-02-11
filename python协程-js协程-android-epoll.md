@@ -57,6 +57,9 @@ fetchAndLogBaidu();
 <font color=black size=5>从整体上看，android并么有充分利用epoll的所有特点，仅仅是使用了wait方法。顶多就是写入一个w激活一下。</font>
 
 
-#需要使用协程的场景就是IO阻塞，即socket读取，pipe管道读取，文件读取
-#另外一个场景就是异步代码写成同步代码的形式，比如Android里面，网络请求结束后更新UI是一个异步操作，用协程会大大提高代码阅读性。javascript中也可以用await关键字，将异步代码写成同步调用。协程本质上还是单线程。
+# 需要使用协程的场景就是IO阻塞，即socket读取，pipe管道读取，文件读取
+# 另外一个场景就是异步代码写成同步代码的形式，比如Android里面，网络请求结束后更新UI是一个异步操作，用协程会大大提高代码阅读性。javascript中也可以用await关键字，将异步代码写成同步调用。协程本质上还是单线程。
+
+# 补充下epoll相关的知识。在浏览器和android中，点击事件会发送一个message，给事件循环（js里面叫event loop，Android里面叫looper）添加一条消息，至于这部分代码，我现在还没有事件去研究。
+
 
