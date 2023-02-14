@@ -1,4 +1,4 @@
-### javascript是单线程模型，和android的Looper机制一样，底层实现用的epoll机制。一个进程只有一条主线程用来更新UI，因此主线程不能做耗时操作，否则界面会卡死。现在看来好像带界面的都用的是单线程模型，至少android和浏览器中的javascript v8引擎是这样的
+### javascript中的event loop是单线程模型，和android的Looper机制一样，底层实现用的epoll机制。一个进程只有一条主线程用来更新UI，因此主线程不能做耗时操作，否则界面会卡死。现在看来好像带界面的都用的是单线程模型，至少android和浏览器中的javascript v8引擎是这样的
 ### 再说一下epoll的事情。Android里面是利用了epoll的wait方法，epoll wait方法可以传0，传-1，或者传一个具体的值。0代表wait函数立即返回，-1代表wait一直监听(这个行为不会抢占cpu资源)直到监听事件(文件可写，文件可读...)的发生，一个具体的值代表timeout，即在指定时间内返回。
 ### 首先Android会创建一个Looper对象，调用loop方法，方法里面有一个for<font color=red  size=5>死循环</font>，调用MessageQueue的next()方法获取消息。巧妙的地方是，MessageQueue并没有直接返回一个Message，而是用了一套障眼法。MessageQueue中的next()方法也是一个<font color=red  size=5>死循环</font>。<br>内部代码是这样执行的：
 ##### 第一次循环调用epoll的wait方法，时间参数传0，代表立刻返回，（这里有点试探性的意思，主要就是判断当前messagequeue有没有东西可以拿，没有message拿，就直接wait(-1)死等；有message拿，就看能不能处理），
