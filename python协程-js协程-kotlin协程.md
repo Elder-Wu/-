@@ -1,4 +1,4 @@
-# 协程本质上还是单线程，现阶段协程最大的特点就是异步代码可以写成同步调用，底层原理就是协程的代码运行时会覆盖当前栈，导致CS：IP只能运行协程栈的代码，只有当协程的代码运行结束后，CS:IP指针才能重新指向主线程栈。协程栈可以包含多个子任务栈，每个子任务栈都是独立的，cpu同一时间只能运行一个任务栈，可通过await关键字交出cpu控制权
+# 协程本质上还是单线程，现阶段协程最大的特点就是异步代码可以写成同步调用，底层原理就是协程的代码运行时会覆盖当前栈，导致CS：IP只能运行协程栈的代码，只有当协程的代码运行结束后，CS:IP指针才能重新指向主线程栈。协程栈可以包含多个子任务栈，每个子任务栈都是独立的，每个子任务栈的上下文信息保存在堆区，cpu同一时间只能运行一个任务栈，可通过await关键字交出cpu控制权切换任务栈
 # 与ChatGPT的一段对话，解释了协程的底层实现原理
 
 ### 关于python协程，我的理解，其实程序每次在切换协程的时候，就是为新的协程开了一个栈
@@ -79,10 +79,35 @@ print("after run")
 #asyncio会把main栈的上下文信息全部备份到堆区，接着在堆区查找其他可以运行的“栈”，而这些堆区的“栈”，其实就是对应每个python协程中的coroutine task，如果找不到可以执行的task，那么asyncio就会进入等待状态，底层是调用了epoll wait(-1)方法，直到刚才的main栈发来可读的通知
 #main栈在重新获得cpu控制权后，会将代码执行完毕，然后task执行完毕，cpu重新交给asyncio
 #asyncio发现如果所有task都执行完毕了，会退出。程序会重新返回到主线程，继续执行print("after run")方法
-
-
 ```
 
+```python
+import asyncio
+import aiohttp
+
+async def fetch_url(session, url):
+    async with session.get(url) as response:
+        return await response.text()
+
+async def main():
+    urls = ['http://www.baidu.com', 'http://www.xiaomi.com', 'http://www.taobao.com']
+    async with aiohttp.ClientSession() as session:
+        tasks = [fetch_url(session, url) for url in urls]
+        results = await asyncio.gather(*tasks)
+        print(results)
+
+if __name__ == '__main__':
+    print("before")
+    asyncio.run(main())
+    print("after")
+    
+#代码解析
+#程序新开了一个main协程栈，覆盖主线程栈
+#main运行到await关键字，意味着要等待后面coroutine的执行完
+#包含3个子任务栈，子任务栈各自执行自己的代码互不影响
+#3个子任务栈运行结束后会打印出结果，main协程栈运行结束，回到主线程栈
+#打印after，整个程序结束
+```
 ---
 
 # javascript的协程主要依靠Promise这个对象，我认为其最大的用途就是可以将异步代码写成同步调用。至于说异步IO的功能，我觉得不明显。
