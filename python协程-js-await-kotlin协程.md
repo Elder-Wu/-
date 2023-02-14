@@ -107,14 +107,20 @@ if __name__ == '__main__':
     
 #代码解析
 #程序新开了一个main协程栈，覆盖主线程栈
-#main运行到await关键字，意味着要等待后面coroutine的执行完
-#包含3个子任务栈，子任务栈各自执行自己的代码互不影响
+#main运行到await关键字，意味着要等待这个方法执行完
+#这个方法创建了3个子任务栈，子任务栈各自执行自己的代码互不影响
 #3个子任务栈运行结束后会打印出结果，main协程栈运行结束，回到主线程栈
 #打印after，整个程序结束
 ```
 ---
 
 # javascript的await关键字，我认为其最大的用途就是可以将异步代码写成同步调用。遇到await关键字时，线程挂起，执行await中的内容，等到await中的函数执行完毕后，会返回一个值给await
+
+```javascript
+// 只在 async 函数内工作
+// 关键字 await 让 JavaScript 引擎等待直到 promise 完成（settle）并返回结果。
+let value = await {Promise对象};
+```
 
 ```javascript
 const fetchBaidu = () => {
