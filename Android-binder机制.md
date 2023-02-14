@@ -9,8 +9,8 @@
     举个例子，手机上有个日历app，该App向binder驱动注册了一个ScheduleList getSchedule(String date)方法。其他app就可以通过binder机制调用这个接口获取日程安排
 
 # 使用接口的app
-  客户端在调用的时候，先打开binder驱动，向驱动程序写入参数，并且告诉binder，我要调用哪个方法
-  驱动程序在接收到参数之后，找到对应的callback，将callback的引用返回给客户端
+  客户端在调用的时候，先打开binder驱动，通过ioctl告诉binder，我要调用哪个方法
+  binder驱动接收到参数之后，找到对应的callback，将callback的引用返回给客户端
   客户端拿到接口的引用后，就可以直接调用了。类似dns解析，通过dns解析域名获取ip地址，而这里获取的函数指针
 
 
