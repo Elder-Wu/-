@@ -117,8 +117,8 @@ if __name__ == '__main__':
 # javascript的await关键字，我认为其最大的用途就是可以将异步代码写成同步调用。遇到await关键字时，线程挂起，执行await中的内容，等到await中的函数执行完毕后，会返回一个值给await
 
 ```javascript
-// 只在 async 函数内工作
-// 关键字 await 让 JavaScript 引擎等待直到 promise 完成（settle）并返回结果。
+// await使用前提：只能在async函数内工作
+// 原理：关键字 await 让 JavaScript 引擎等待直到 promise 完成（settle）并返回结果。
 let value = await {Promise对象};
 ```
 
