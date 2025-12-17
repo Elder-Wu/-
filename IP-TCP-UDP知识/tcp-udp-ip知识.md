@@ -102,6 +102,90 @@ ACK确认标志用于`确认数据包的成功接收，也用于握手和挥手�
 >
 > 这样的话既可以保证顺序正确，也不丢包
 
+#### C语言实现一个TCP服务端
+
+```c
+#include <stdio.h>
+#include <string.h>
+#include <unistd.h>
+#include <arpa/inet.h>
+
+int main() {
+    // 1. 创建 socket
+    //   libc 把这个调用变成 系统调用，触发 sys_socket() → 进入内核态
+    //   内核 创建了一个 socket 内核对象，分配一个 fd
+    int server_fd = socket(AF_INET, SOCK_STREAM, 0);
+    if (server_fd < 0) {
+        perror("socket");
+        return 1;
+    }
+
+    // 2. 绑定 IP 和端口
+    //   在内核中给 socket 分配 IP 和端口，占坑但不监听
+    struct sockaddr_in addr;
+    addr.sin_family = AF_INET;
+    addr.sin_port = htons(8888);          // 监听 8888 端口
+    addr.sin_addr.s_addr = INADDR_ANY;    // 0.0.0.0
+
+    if (bind(server_fd, (struct sockaddr*)&addr, sizeof(addr)) < 0) {
+        perror("bind");
+        return 1;
+    }
+
+    // 3. 开始监听
+    //   listen() 将 socket 设置为 TCP_LISTEN 状态，使其成为监听 socket
+    //   listen 本身不参与 TCP 握手，真正的三次握手由内核 TCP 状态机自动完成
+    //
+    //   内核会维护两个队列：
+    //   1）半连接队列（SYN Queue）
+    //      - 客户端发 SYN
+    //      - 服务端回 SYN+ACK
+    //      - 等待客户端最后的 ACK
+    //
+    //   2）全连接队列（Accept Queue）
+    //      - 三次握手完成
+    //      - socket 处于 TCP_ESTABLISHED 状态
+    //
+    //   当内核收到客户端最后一个 ACK 时：
+    //   1）将半连接 request_sock 转换为真正的 TCP socket（ESTABLISHED）
+    //   2）把该 socket 放入 Accept Queue
+    //   3）监听 socket 仍然保持 TCP_LISTEN 状态，不参与通信
+    if (listen(server_fd, 5) < 0) {
+        perror("listen");
+        return 1;
+    }
+
+      printf("Server listening on port 8888...\n");
+
+    // 4. 接受客户端连接（阻塞）
+    //   accept() 的作用是：
+    //   - 从 Accept Queue 取出一个已完成三次握手的 socket。有：立刻返回;没有：阻塞
+    //   - 返回一个新的文件描述符用于与该客户端通信
+    int client_fd = accept(server_fd, NULL, NULL);
+    if (client_fd < 0) {
+        perror("accept");
+        return 1;
+    }
+
+    // 5. 接收数据
+    char buf[1024] = { 0 };
+    read(client_fd, buf, sizeof(buf));
+    printf("Client says: %s\n", buf);
+
+    // 6. 发送数据
+    const char* msg = "Hello from server\n";
+    write(client_fd, msg, strlen(msg));
+
+    // tls握手发生在第5步和第6步
+
+    // 7. 关闭连接
+    close(client_fd);
+    close(server_fd);
+
+    return 0;
+}
+```
+
 ***
 
 
