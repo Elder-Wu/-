@@ -8,6 +8,8 @@
 ### Android是如何post消息的。post消息很简单，post的时候，会把每个消息的绝对时间(uptimeMillis)记录下来，插入消息队列时，根据uptimeMillis进行排序。如果新的message插入到队头，就要激活这个消息队列，目的是让Looper方法更新wait的参数(-1,0,具体的值)。据了解，Android作者好像写入了一个w字母，记不太清了，其他没有特别的地方了
 # 从整体上看，android并么有充分利用epoll的所有特点，仅仅是使用了wait方法。顶多就是写入一个w激活一下。发消息和处理消息是解耦的
 
+Android Handler 的 epoll，主要监听的是 eventfd（唤醒）、timerfd（定时），早期用过 pipe，另外还会监听 binder fd。
+
 epoll 等待原理
 
 用户态调用 epoll_wait() 后，内核先检查 epoll 实例的就绪队列（ready list）：
