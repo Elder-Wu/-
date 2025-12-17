@@ -7,3 +7,16 @@
 ##### 通过上面的流程，android利用wait方法间接实现了消息的获取，和cpu的资源释放。简单点说就是，有消息就处理，没有消息就等待
 ### Android是如何post消息的。post消息很简单，post的时候，会把每个消息的绝对时间(uptimeMillis)记录下来，插入消息队列时，根据uptimeMillis进行排序。如果新的message插入到队头，就要激活这个消息队列，目的是让Looper方法更新wait的参数(-1,0,具体的值)。据了解，Android作者好像写入了一个w字母，记不太清了，其他没有特别的地方了
 # 从整体上看，android并么有充分利用epoll的所有特点，仅仅是使用了wait方法。顶多就是写入一个w激活一下。发消息和处理消息是解耦的
+
+epoll 等待原理
+
+用户态调用 epoll_wait() 后，内核先检查 epoll 实例的就绪队列（ready list）：
+
+若 ready list 非空，直接返回就绪的 fd 列表；
+
+若为空，当前线程被设置为 TASK_INTERRUPTIBLE，挂到 epoll 实例的等待队列上，并被调度器换下 CPU 进入睡眠。
+
+当 I/O 事件发生时（如 socket 收到数据、连接状态变化），设备驱动或网络协议栈会唤醒对应 fd 的等待队列，触发 epoll 注册的回调函数。
+该回调将发生事件的 fd 加入 epoll 的 ready list，并唤醒正在 epoll_wait() 中睡眠的线程。
+
+线程被唤醒后进入 RUNNABLE 状态，加入调度器的运行队列，获得 CPU 后直接从 ready list 拷贝就绪 fd 到用户态并返回。
